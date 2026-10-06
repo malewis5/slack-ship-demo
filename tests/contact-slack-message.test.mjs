@@ -206,3 +206,16 @@ test('trims outer whitespace but preserves message paragraphs and Unicode', () =
   assert.equal(field(result, 'full_name').value, 'Jane Doe');
   assert.equal(field(result, 'description').value, 'Hello 𐐀\n\nSecond paragraph.');
 });
+
+test('qualification and consultation draft appear as plain Slack fields, never sent outreach', () => {
+  const qualification = { projectScope: 'full_service', timing: 'Unknown — ask for desired installation date.', nextStep: 'Ask for timing and offer consultation.', replyDraft: 'Our end-to-end studio can help. Would you like a design consultation? What is your target installation date?' };
+  const result = buildContactSlackMessage(submission, identity, { ...complete, research: { ...complete.research, qualification } });
+  for (const [key, value] of [['project_scope', qualification.projectScope], ['timing', qualification.timing], ['next_step', qualification.nextStep], ['reply_draft', qualification.replyDraft]]) {
+    assert.equal(field(result, key).value, value);
+    assert.ok(entity(result).entity_payload.display_order.includes(key));
+    assert.equal(field(result, key).type, 'string');
+  }
+  assert.equal(field(result, 'reply_draft').label, 'Reply draft (not sent)');
+  const noDraft = buildContactSlackMessage(submission, identity, { ...complete, research: { ...complete.research, qualification: { ...qualification, replyDraft: null } } });
+  assert.equal(field(noDraft, 'reply_draft'), undefined);
+});

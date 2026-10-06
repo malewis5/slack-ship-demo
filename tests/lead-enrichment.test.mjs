@@ -25,6 +25,7 @@ const lead = {
 };
 const input = { ...lead, email: 'jordan@OriginalStudio.com' };
 const research = {
+  qualification: { projectScope: 'unknown', timing: 'Unknown — ask for desired installation date.', nextStep: 'Ask about scope and timing.', replyDraft: null },
   companyDescription: 'A design studio with a Manhattan headquarters.',
   match: 'matched', nycOffice: 'confirmed', premiumOffice: 'strong',
   purchaseIntent: 'explicit', confidence: 'high', rationale: 'The office page supports the fit.',
@@ -73,7 +74,7 @@ test('structured research sends original display context, domain, schema and sig
   assert.equal(Object.hasOwn(sent.lead, 'email'), false);
   assert.ok(options.signal instanceof AbortSignal);
   assert.equal(options.signal.aborted, false);
-  assert.deepEqual(options.outputSchema, z.toJSONSchema(researchResultSchema));
+  assert.deepEqual(options.outputSchema, z.toJSONSchema(researchResultSchema.required({ qualification: true })));
   assert.deepEqual(options.streamReconnectPolicy, { reconnect: false });
   assert.deepEqual(result, {
     status: 'complete', sessionId: stub.session.state.sessionId, createdAt: sent.createdAt, research,

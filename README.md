@@ -57,3 +57,17 @@ conversation do not replay or modify threads that have already started.
 - `components/ui/controls.tsx` implements the buttons and form fields.
 - `app/api/contact/route.ts` receives validated contact submissions.
 - `agent/` and `scripts/` contain the optional research and demo workflows.
+
+### Inbound lead qualification
+
+New lead research prioritizes full-service framing/display work for premium NYC spaces,
+usually $30–50k, and positions the business as an end-to-end design, fabrication,
+and installation studio. The existing transparent numeric rubric remains; new
+research also requires supported full-service scope, NYC/premium-space signals,
+and explicit framing/display intent for a Strong fit label. Legacy saved research
+remains readable without qualification fields.
+
+Slack lead details now include project scope, submitted timing (or an explicit
+unknown), a recommended next step, and a consultation reply draft when promising.
+The agent must ask for missing budget and timing instead of guessing. Drafts are
+for human review only: this flow does not send email or book consultations.

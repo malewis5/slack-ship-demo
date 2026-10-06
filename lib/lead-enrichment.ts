@@ -77,7 +77,7 @@ export async function enrichLead(
     const work = (async () => {
       const created = await client.sessions.create<ResearchResult>({
         message: JSON.stringify(envelope),
-        outputSchema: z.toJSONSchema(researchResultSchema),
+        outputSchema: z.toJSONSchema(researchResultSchema.required({ qualification: true })),
         signal,
         streamReconnectPolicy: { reconnect: false },
       });
@@ -85,7 +85,7 @@ export async function enrichLead(
       if (signal.aborted) throw new Error('Research deadline reached');
       const result = await created.response.result();
       if (result.status === 'failed') throw new Error('Research failed');
-      const research = researchResultSchema.parse(result.data);
+      const research = researchResultSchema.required({ qualification: true }).parse(result.data);
       return { status: 'complete' as const, sessionId: session.state.sessionId, createdAt, research };
     })();
     // If creation finishes after the deadline, still cancel that late session.

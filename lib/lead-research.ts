@@ -15,6 +15,12 @@ export const researchResultSchema = z.object({
   purchaseIntent: z.enum(['explicit', 'exploratory', 'none']),
   confidence: z.enum(['high', 'medium', 'low']),
   rationale: z.string().max(300).trim().min(1),
+  qualification: z.object({
+    projectScope: z.enum(['full_service', 'limited', 'unknown']),
+    timing: z.string().max(160).trim().min(1),
+    nextStep: z.string().max(400).trim().min(1),
+    replyDraft: z.string().max(1000).trim().min(1).nullable(),
+  }).optional(), // Old stored research remains readable. New sessions must include this.
   sources: z.array(z.object({
     title: z.string().max(120).trim().min(1),
     url: sourceUrlSchema,
@@ -52,5 +58,8 @@ export function scoreLead(
   };
   // Always score the available signals. Unknown factors simply earn no points.
   const score = breakdown.nycOffice + breakdown.premiumOffice + breakdown.teamSize + breakdown.purchaseIntent + breakdown.budget;
-  return { score, label: score >= 75 ? 'Strong fit' : score >= 45 ? 'Possible fit' : 'Low fit', breakdown };
+  const qualified = !research?.qualification || (research.qualification.projectScope === 'full_service'
+    && research.match === 'matched' && research.nycOffice === 'confirmed'
+    && research.premiumOffice !== 'unknown' && research.purchaseIntent === 'explicit');
+  return { score, label: score >= 75 && qualified ? 'Strong fit' : score >= 45 ? 'Possible fit' : 'Low fit', breakdown };
 }
