@@ -24,6 +24,12 @@ export function buildContactSlackMessage(
       { key: 'company_overview', label: 'Company overview', type: 'string', value: research.companyDescription, long: true },
       { key: 'fit_reason', label: 'Why it fits', type: 'string', value: research.rationale, long: true },
       { key: 'confidence', label: 'Research confidence', type: 'string', value: research.confidence },
+      ...(research.qualification ? [
+        { key: 'project_scope', label: 'Project scope', type: 'string', value: research.qualification.projectScope },
+        { key: 'timing', label: 'Timing', type: 'string', value: research.qualification.timing },
+        { key: 'next_step', label: 'Recommended next step', type: 'string', value: research.qualification.nextStep, long: true },
+        ...(research.qualification.replyDraft ? [{ key: 'reply_draft', label: 'Reply draft (not sent)', type: 'string', value: research.qualification.replyDraft, long: true }] : []),
+      ] : []),
       ...research.sources.map((source, index) => ({ key: `research_source_${index}`, label: source.title, type: 'slack#/types/link', value: source.url })),
     ] : [
       { key: 'confidence', label: 'Research confidence', type: 'string', value: enrichment ? 'Unavailable' : 'Pending' },

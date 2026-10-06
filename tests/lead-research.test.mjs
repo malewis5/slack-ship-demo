@@ -108,3 +108,30 @@ test('source links must be valid HTTPS URLs without credentials', () => {
     assert.equal(researchResultSchema.safeParse({ ...research, sources: [{ title: 'Source', url }] }).success, false);
   }
 });
+
+const qualification = { projectScope: 'full_service', timing: 'Unknown — ask for desired installation date.', nextStep: 'Offer consultation and ask for timing.', replyDraft: 'We offer end-to-end design, fabrication, and installation. Would you like a design consultation? What is your desired installation date?' };
+
+test('new strong fits require full-service framing/display scope and supported NYC signals', () => {
+  assert.equal(scoreLead(parsed({ qualification }), '1,000+', targetBudget).label, 'Strong fit');
+  for (const projectScope of ['limited', 'unknown']) {
+    assert.equal(scoreLead(parsed({ qualification: { ...qualification, projectScope } }), '1,000+', targetBudget).label, 'Possible fit');
+  }
+  for (const overrides of [{ match: 'ambiguous' }, { nycOffice: 'unknown' }, { premiumOffice: 'unknown' }, { purchaseIntent: 'none' }]) {
+    assert.notEqual(scoreLead(parsed({ qualification, ...overrides }), '1,000+', targetBudget).label, 'Strong fit');
+  }
+});
+
+test('qualification validates scope and bounded drafts while accepting legacy research', () => {
+  assert.equal(parsed({ qualification }).qualification.timing, qualification.timing);
+  assert.equal(researchResultSchema.safeParse({ ...research, qualification: { ...qualification, projectScope: 'guessed' } }).success, false);
+  assert.equal(researchResultSchema.safeParse({ ...research, qualification: { ...qualification, replyDraft: 'x'.repeat(1001) } }).success, false);
+  assert.equal(researchResultSchema.required({ qualification: true }).safeParse(research).success, false);
+});
+
+test('agent instructions require clarification instead of inferred budget/timing and draft-only outreach', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const instructions = await readFile(new URL('../agent/instructions.md', import.meta.url), 'utf8');
+  for (const phrase of ['explicitly ask for the budget range', 'explicitly ask for the desired installation date', 'end-to-end', 'design consultation', 'never send outreach', 'Do not infer project scope']) {
+    assert.ok(instructions.includes(phrase), phrase);
+  }
+});
