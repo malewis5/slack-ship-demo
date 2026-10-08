@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BUDGETS, TEAM_SIZES } from '../lib/contact.ts';
-import { researchResultSchema, scoreLead } from '../lib/lead-research.ts';
+import { leadNextSteps, researchResultSchema, scoreLead } from '../lib/lead-research.ts';
 
 const research = {
   companyDescription: 'A design firm with a high-end Manhattan office.',
   match: 'matched', nycOffice: 'confirmed', premiumOffice: 'strong',
-  purchaseIntent: 'explicit', confidence: 'high',
+  purchaseIntent: 'explicit', projectScope: 'full_project', confidence: 'high',
   rationale: 'An NYC office and a concrete office-furniture request.',
   sources: [{ title: 'Company office', url: 'https://example.com/offices/nyc' }],
 };
@@ -53,12 +53,12 @@ test('distinguishes possible and low fits without NYC or premium signals', () =>
   assert.equal(scoreLead(parsed({ nycOffice: 'outside_nyc', premiumOffice: 'unknown', purchaseIntent: 'none' }), '1–10', targetBudget).label, 'Low fit');
 });
 
-test('keeps label thresholds at 45 and 75', () => {
+test('keeps the possible-fit threshold and prevents strong labels without intent', () => {
   for (const [nycOffice, teamSize, score, label] of [
     ['outside_nyc', '1–10', 44, 'Low fit'],
     ['outside_nyc', '11–50', 45, 'Possible fit'],
     ['confirmed', '1–10', 74, 'Possible fit'],
-    ['confirmed', '11–50', 75, 'Strong fit'],
+    ['confirmed', '11–50', 75, 'Possible fit'],
   ]) {
     const result = scoreLead(parsed({ nycOffice, premiumOffice: 'some', purchaseIntent: 'none' }), teamSize, 'Over $50,000');
     assert.equal(result.score, score);
@@ -107,4 +107,24 @@ test('source links must be valid HTTPS URLs without credentials', () => {
   for (const url of ['not a URL', 'http://example.com', 'https://user:password@example.com']) {
     assert.equal(researchResultSchema.safeParse({ ...research, sources: [{ title: 'Source', url }] }).success, false);
   }
+});
+
+test('strong fit requires a verified full project, NYC premium space, and explicit intent', () => {
+  for (const overrides of [{ projectScope: 'limited' }, { projectScope: 'unknown' }, { projectScope: undefined }, { match: 'ambiguous' }, { confidence: 'low' }, { purchaseIntent: 'none' }, { premiumOffice: 'unknown' }]) {
+    assert.notEqual(scoreLead(parsed(overrides), '1,000+', targetBudget).label, 'Strong fit');
+  }
+});
+
+test('asks for unknown budget and timing without inventing either; drafts consultations only for promising leads', () => {
+  const steps = leadNextSteps(parsed(), 'Not sure yet');
+  assert.equal(steps.questions.length, 2);
+  assert.match(steps.draftReply, /end-to-end/);
+  assert.match(steps.draftReply, /design consultation/);
+  assert.match(steps.draftReply, /budget range/);
+  assert.match(steps.draftReply, /timeline/);
+  assert.deepEqual(leadNextSteps(parsed({ timing: 'By December' }), targetBudget).questions, []);
+  assert.equal(leadNextSteps(parsed({ projectScope: 'limited' }), targetBudget).draftReply, undefined);
+  assert.equal(leadNextSteps(parsed(), 'Under $10,000').draftReply, undefined);
+  assert.equal(leadNextSteps(undefined).questions.length, 3);
+  assert.equal(leadNextSteps(undefined).draftReply, undefined);
 });

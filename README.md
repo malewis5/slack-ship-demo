@@ -57,3 +57,19 @@ conversation do not replay or modify threads that have already started.
 - `components/ui/controls.tsx` implements the buttons and form fields.
 - `app/api/contact/route.ts` receives validated contact submissions.
 - `agent/` and `scripts/` contain the optional research and demo workflows.
+
+## Inbound lead qualification
+
+Prioritize full framing and display projects for premium NYC spaces, typically
+$30,000–$50,000 (larger projects can also fit). The numeric score remains an
+available-signal heuristic, not a conversion probability. A Strong fit label
+additionally requires a matched company, non-low confidence, confirmed NYC
+presence, premium-space evidence, explicit purchase intent, and full-project
+scope. Older research without scope remains unqualified until clarified.
+
+The agent extracts scope and explicitly submitted timing; it never estimates
+budget or timing. Slack shows questions for missing budget, timing, and scope,
+and a review-only design-consultation reply for promising projects. Replies
+position the studio as end-to-end design, fabrication, and installation. Nothing
+is automatically emailed or booked. Existing stored leads remain readable;
+new scope and timing evidence appears on newly enriched leads.

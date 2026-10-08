@@ -1,6 +1,6 @@
 import type { ContactSubmission } from '../../../lib/contact';
 import type { LeadEnrichment } from '../../../lib/lead-enrichment';
-import { scoreLead } from '../../../lib/lead-research';
+import { leadNextSteps, scoreLead } from '../../../lib/lead-research';
 import demoConfig from '../../../demo.config.json' with { type: 'json' };
 
 export type LeadIdentity = {
@@ -18,8 +18,12 @@ export function buildContactSlackMessage(
 ) {
   const research = enrichment?.status === 'complete' ? enrichment.research : undefined;
   const fit = scoreLead(research, input.teamSize, input.budget);
+  const nextSteps = leadNextSteps(research, input.budget);
   const researchFields = [
     { key: 'icp_fit', label: 'ICP fit', type: 'string', value: `${fit.score}/100 · ${fit.label}` },
+    ...(nextSteps.questions.length ? [{ key: 'qualification_questions', label: 'Questions to ask', type: 'string', value: nextSteps.questions.join(' '), long: true }] : []),
+    ...(nextSteps.draftReply ? [{ key: 'draft_reply', label: 'Draft reply — review before sending', type: 'string', value: nextSteps.draftReply, long: true }] : []),
+    ...(research?.timing ? [{ key: 'project_timing', label: 'Submitted timing', type: 'string', value: research.timing }] : []),
     ...(research ? [
       { key: 'company_overview', label: 'Company overview', type: 'string', value: research.companyDescription, long: true },
       { key: 'fit_reason', label: 'Why it fits', type: 'string', value: research.rationale, long: true },
