@@ -327,7 +327,9 @@ test('acks before reading KV and presents the original submission with its store
   assert.deepEqual(fields, {
     full_name: saved.submission.name, company: saved.submission.company, team_size: saved.submission.teamSize,
     budget: saved.submission.budget, status: 'New', description: saved.submission.message, source: 'Contact Us Form',
-    icp_fit: '97/100 · Strong fit', company_overview: saved.enrichment.research.companyDescription,
+    icp_fit: '97/100 · Possible fit',
+    qualification_questions: 'What is your target installation date or project timeline? Are you looking for a full framing and display project, including design, fabrication, and installation?',
+    draft_reply: 'Thanks for reaching out. We are an end-to-end framing and display studio, supporting design, fabrication, and installation for premium NYC spaces. We would be happy to explore your project in a design consultation. What is your target installation date or project timeline? Are you looking for a full framing and display project, including design, fabrication, and installation?', company_overview: saved.enrichment.research.companyDescription,
     fit_reason: saved.enrichment.research.rationale, confidence: 'high',
     research_source_0: saved.enrichment.research.sources[0].url,
   });
@@ -335,7 +337,7 @@ test('acks before reading KV and presents the original submission with its store
     key: 'budget', label: 'Budget (USD)', type: 'string', value: saved.submission.budget,
   });
   assert.deepEqual(body.metadata.entity_payload.display_order, [
-    'full_name', 'company', 'budget', 'icp_fit', 'company_overview', 'fit_reason', 'confidence',
+    'full_name', 'company', 'budget', 'icp_fit', 'qualification_questions', 'draft_reply', 'company_overview', 'fit_reason', 'confidence',
     'team_size', 'status', 'description', 'source', 'research_source_0',
   ]);
   assert.deepEqual(body.metadata.entity_payload.custom_fields.find(({ key }) => key === 'research_source_0'), {
@@ -387,7 +389,8 @@ for (const enrichment of [undefined, { status: 'unavailable', createdAt: 1789000
     assert.deepEqual(fields, {
       full_name: saved.submission.name, company: saved.submission.company, team_size: saved.submission.teamSize,
       budget: saved.submission.budget, status: 'New', description: saved.submission.message, source: 'Contact Us Form',
-      icp_fit: '42/100 · Low fit', confidence: enrichment ? 'Unavailable' : 'Pending',
+      icp_fit: '42/100 · Low fit',
+      qualification_questions: 'What is your target installation date or project timeline? Are you looking for a full framing and display project, including design, fabrication, and installation?', confidence: enrichment ? 'Unavailable' : 'Pending',
     });
     assert.deepEqual(unscored.submission, saved.submission);
   });

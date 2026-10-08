@@ -13,6 +13,9 @@ export const researchResultSchema = z.object({
   nycOffice: z.enum(['confirmed', 'outside_nyc', 'unknown']),
   premiumOffice: z.enum(['strong', 'some', 'unknown']),
   purchaseIntent: z.enum(['explicit', 'exploratory', 'none']),
+  // Optional for previously stored research; absent signals stay unknown.
+  projectScope: z.enum(['full_project', 'limited', 'unknown']).optional(),
+  timing: z.string().max(160).trim().min(1).optional(),
   confidence: z.enum(['high', 'medium', 'low']),
   rationale: z.string().max(300).trim().min(1),
   sources: z.array(z.object({
@@ -52,5 +55,27 @@ export function scoreLead(
   };
   // Always score the available signals. Unknown factors simply earn no points.
   const score = breakdown.nycOffice + breakdown.premiumOffice + breakdown.teamSize + breakdown.purchaseIntent + breakdown.budget;
-  return { score, label: score >= 75 ? 'Strong fit' : score >= 45 ? 'Possible fit' : 'Low fit', breakdown };
+  const qualified = research?.match === 'matched' && research.confidence !== 'low'
+    && research.nycOffice === 'confirmed' && research.premiumOffice !== 'unknown'
+    && research.purchaseIntent === 'explicit' && research.projectScope === 'full_project';
+  return { score, label: score >= 75 && qualified ? 'Strong fit' : score >= 45 ? 'Possible fit' : 'Low fit', breakdown };
+}
+
+// Drafts only: no outbound email or automatic consultation booking.
+export function leadNextSteps(research: ResearchResult | undefined, budget?: ContactSubmission['budget']) {
+  const questions: string[] = [];
+  if (!budget || budget === 'Not sure yet') questions.push('What budget range are you planning for the full project?');
+  if (!research?.timing) questions.push('What is your target installation date or project timeline?');
+  if (!research || research.projectScope === undefined || research.projectScope === 'unknown') {
+    questions.push('Are you looking for a full framing and display project, including design, fabrication, and installation?');
+  }
+  const promising = research?.match === 'matched' && research.confidence !== 'low'
+    && research.nycOffice === 'confirmed' && research.premiumOffice !== 'unknown'
+    && research.purchaseIntent !== 'none' && research.projectScope !== 'limited'
+    && (!budget || budget === 'Not sure yet' || budget === '$30,000–$50,000' || budget === 'Over $50,000');
+  const draftReply = promising
+    ? ['Thanks for reaching out. We are an end-to-end framing and display studio, supporting design, fabrication, and installation for premium NYC spaces.',
+      'We would be happy to explore your project in a design consultation.', ...questions].join(' ')
+    : undefined;
+  return { questions, draftReply };
 }

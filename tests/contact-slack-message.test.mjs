@@ -15,7 +15,7 @@ const complete = {
   research: researchResultSchema.parse({
     companyDescription: 'Acme designs software in a premium Manhattan office.',
     match: 'matched', nycOffice: 'confirmed', premiumOffice: 'strong',
-    purchaseIntent: 'exploratory', confidence: 'high',
+    purchaseIntent: 'exploratory', projectScope: 'full_project', timing: 'By December', confidence: 'high',
     rationale: 'Its NYC office and premium workspace are a strong furniture fit.',
     sources: [
       { title: 'Acme offices', url: 'https://example.com/acme/offices' },
@@ -45,11 +45,11 @@ test('posts a real Item Work Object rather than Block Kit imitation', () => {
     product_name: 'nyc-framing', metadata_last_modified: identity.createdAt,
   });
   assert.equal(item.entity_payload.fields, undefined, 'generic Item uses custom_fields only');
-  assert.deepEqual(item.entity_payload.display_order, ['full_name', 'company', 'budget', 'icp_fit', 'confidence', 'team_size', 'status', 'description', 'source']);
+  assert.deepEqual(item.entity_payload.display_order, ['full_name', 'company', 'budget', 'icp_fit', 'qualification_questions', 'confidence', 'team_size', 'status', 'description', 'source']);
   assert.deepEqual(fields(result).map(({ key, value }) => [key, value]), [
     ['full_name', 'Jane Doe'], ['company', 'Acme'], ['team_size', '11–50'], ['budget', submission.budget],
     ['status', 'New'], ['description', submission.message], ['source', 'Contact Us Form'],
-    ['icp_fit', '42/100 · Low fit'], ['confidence', 'Pending'],
+    ['icp_fit', '42/100 · Low fit'], ['qualification_questions', 'What is your target installation date or project timeline? Are you looking for a full framing and display project, including design, fabrication, and installation?'], ['confidence', 'Pending'],
   ]);
   assert.deepEqual(field(result, 'budget'), { key: 'budget', label: 'Budget (USD)', type: 'string', value: submission.budget });
   assert.equal(field(result, 'description').long, true);
@@ -66,7 +66,7 @@ test('complete enrichment preserves the stored identity and uses updatedAt with 
     title: { text: 'Inbound Lead' }, display_type: 'Lead', display_id: 'LEAD-12345678',
     product_name: 'nyc-framing', metadata_last_modified: updatedIdentity.updatedAt,
   });
-  assert.equal(field(result, 'icp_fit').value, '92/100 · Strong fit');
+  assert.equal(field(result, 'icp_fit').value, '92/100 · Possible fit');
   assert.equal(field(result, 'company_overview').value, complete.research.companyDescription);
   assert.equal(field(result, 'company_overview').long, true);
   assert.equal(field(result, 'fit_reason').value, complete.research.rationale);
@@ -78,13 +78,13 @@ test('complete enrichment preserves the stored identity and uses updatedAt with 
       key: `research_source_${index}`, label: title, type: 'slack#/types/link', value: url,
     })));
   assert.deepEqual(item.entity_payload.display_order, [
-    'full_name', 'company', 'budget', 'icp_fit', 'company_overview', 'fit_reason', 'confidence',
+    'full_name', 'company', 'budget', 'icp_fit', 'draft_reply', 'project_timing', 'company_overview', 'fit_reason', 'confidence',
     'team_size', 'status', 'description', 'source', 'research_source_0', 'research_source_1',
   ]);
   assert.equal(JSON.stringify(result).includes(submission.email), false);
   // Expected totals are independent of scoreLead, including the submitted team size.
   for (const [teamSize, score] of [['1–10', 91], ['11–50', 92], ['51–200', 93], ['201–1,000', 95], ['1,000+', 95]]) {
-    assert.equal(field(buildContactSlackMessage({ ...submission, teamSize }, identity, complete), 'icp_fit').value, `${score}/100 · Strong fit`);
+    assert.equal(field(buildContactSlackMessage({ ...submission, teamSize }, identity, complete), 'icp_fit').value, `${score}/100 · Possible fit`);
   }
 });
 
@@ -156,7 +156,7 @@ test('preserves maximum-length submissions and all accepted team sizes', () => {
 test('renders every accepted budget unchanged and scores it in the Work Object', () => {
   for (const [budget, score, label] of [
     ['Under $10,000', 52, 'Possible fit'], ['$10,000–$29,999', 62, 'Possible fit'],
-    ['$30,000–$50,000', 92, 'Strong fit'], ['Over $50,000', 87, 'Strong fit'],
+    ['$30,000–$50,000', 92, 'Possible fit'], ['Over $50,000', 87, 'Possible fit'],
     ['Not sure yet', 52, 'Possible fit'],
   ]) {
     assert.ok(BUDGETS.includes(budget));
@@ -205,4 +205,14 @@ test('trims outer whitespace but preserves message paragraphs and Unicode', () =
   const result = payload({ ...submission, name: ' Jane Doe ', company: ' Acme ', message: '  Hello 𐐀\n\nSecond paragraph.  ' });
   assert.equal(field(result, 'full_name').value, 'Jane Doe');
   assert.equal(field(result, 'description').value, 'Hello 𐐀\n\nSecond paragraph.');
+});
+
+test('Slack exposes missing details and a review-only consultation draft', () => {
+  const research = researchResultSchema.parse({ ...complete.research, timing: undefined });
+  const result = buildContactSlackMessage({ ...submission, budget: 'Not sure yet' }, identity, { ...complete, research });
+  assert.match(field(result, 'qualification_questions').value, /budget range/);
+  assert.match(field(result, 'qualification_questions').value, /timeline/);
+  assert.match(field(result, 'draft_reply').value, /design consultation/);
+  assert.match(field(result, 'draft_reply').label, /review before sending/);
+  assert.equal(field(result, 'project_timing'), undefined);
 });

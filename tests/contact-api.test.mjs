@@ -284,7 +284,7 @@ test("accepts after persistence, then enriches and saves before sending the Work
   assert.equal(fields.description, submission.message);
   assert.equal(fields.budget, submission.budget);
   assert.ok(item.entity_payload.display_order.includes("budget"));
-  assert.equal(fields.icp_fit, "92/100 · Strong fit");
+  assert.equal(fields.icp_fit, "92/100 · Possible fit");
   assert.equal(fields.company_overview, complete.research.companyDescription);
   assert.equal(fields.research_source_0, complete.research.sources[0].url);
 });
