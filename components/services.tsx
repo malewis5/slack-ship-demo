@@ -61,7 +61,7 @@ export function Services(): JSX.Element {
             src="/images/display-case.png"
             alt="Custom display case showcasing objects"
             fill
-            sizes="(min-width: 1024px) 48vw, 100vw"
+            sizes="(min-width: 1024px) 480px, (min-width: 640px) calc(100vw - 64px), calc(100vw - 40px)"
             className="object-cover"
           />
         </div>
