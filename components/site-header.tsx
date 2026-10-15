@@ -28,7 +28,7 @@ export function SiteHeader(): JSX.Element {
 
         <nav
           aria-label="Primary"
-          className="hidden items-center gap-8 md:flex"
+          className="hidden items-center gap-8 lg:flex"
         >
           {NAV_LINKS.map((item) => (
             <Link
