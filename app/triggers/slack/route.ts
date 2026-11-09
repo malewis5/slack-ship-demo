@@ -6,14 +6,11 @@ import { buildContactSlackMessage } from '../../api/contact/slack-message';
 import { getLead } from '../../../lib/lead-store';
 import { isDemoMessageCandidate, matchDemoTrigger, runDemoReplies } from '../../../lib/demo-trigger';
 import { listConversations } from '../../../lib/conversation-store';
-import demoConfig from '../../../demo.config.json' with { type: 'json' };
+import { findSlackTarget } from '../../../lib/slack-targets.mjs';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const CONNECTOR = process.env.SLACK_CONNECTOR_ID || 'slack/demo-agent';
-const APP_ID = process.env.SLACK_APP_ID || demoConfig.slackAppId;
-const TEAM_ID = process.env.SLACK_TEAM_ID || demoConfig.slackTeamId;
 // Verifies the forwarded bearer token against this deployment's project and
 // environment. This route does not accept unsigned or direct Slack requests.
 const verifyWebhook = createConnectWebhookVerifier();
@@ -54,19 +51,22 @@ export async function POST(request: Request): Promise<Response> {
 
   const envelope = envelopeSchema.safeParse(payload);
   if (!envelope.success) return Response.json({ error: 'Invalid event' }, { status: 400 });
-  if (envelope.data.api_app_id !== APP_ID || envelope.data.team_id !== TEAM_ID) {
+  // Each configured Slack app (one Connect connector each) is bound to its own
+  // workspace and channel; events only act on their own target.
+  const target = findSlackTarget(envelope.data.api_app_id, envelope.data.team_id);
+  if (!target) {
     return Response.json({ error: 'Wrong Slack app or workspace' }, { status: 403 });
   }
   if (envelope.data.type !== 'event_callback') return Response.json({ ok: true });
   if (envelope.data.event.type === 'message') {
-    if (!isDemoMessageCandidate(envelope.data.event)) return Response.json({ ok: true });
+    if (!isDemoMessageCandidate(envelope.data.event, target)) return Response.json({ ok: true });
     after(async () => {
       try {
         const conversations = await listConversations();
-        const trigger = matchDemoTrigger(envelope.data.event, conversations);
+        const trigger = matchDemoTrigger(envelope.data.event, conversations, target);
         if (trigger) {
           const conversation = conversations.find((item) => item.id === trigger.scene)!;
-          await runDemoReplies(trigger, { conversation });
+          await runDemoReplies(trigger, { conversation, target });
         }
       } catch {
         // Never log message text, credentials, or raw storage errors.
@@ -90,8 +90,8 @@ export async function POST(request: Request): Promise<Response> {
   // Opening or refreshing never starts another research turn.
   after(async () => {
     try {
-      const token = await getToken(CONNECTOR, {
-        subject: { type: 'app' }, installationId: TEAM_ID,
+      const token = await getToken(target.connector, {
+        subject: { type: 'app' }, installationId: target.team,
       });
       let detailBody: Record<string, unknown> = { error: { status: 'not_found' } };
       if (leadId) {

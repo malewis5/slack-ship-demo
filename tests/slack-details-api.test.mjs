@@ -7,6 +7,7 @@ import { isDemoMessageCandidate, matchDemoTrigger } from '../lib/demo-trigger.ts
 import { defaultConversations } from '../lib/conversations.ts';
 import demoConfig from '../demo.config.json' with { type: 'json' };
 import { scenes } from '../scripts/demo-scenes.mjs';
+import { primaryTarget } from '../lib/slack-targets.mjs';
 
 const routeUrl = new URL('../app/triggers/slack/route.ts', import.meta.url).href;
 const storeUrl = new URL('../lib/lead-store.ts', import.meta.url).href;
@@ -171,7 +172,7 @@ for (const scene of ['seed', 'playbook']) {
       assert.equal(runDemoReplies.mock.callCount(), callsBefore + 1);
       assert.deepEqual(runDemoReplies.mock.calls.at(-1).arguments, [{
         scene, channel, ts: '1789000200.123456', user,
-      }, { conversation: defaultConversations.find((item) => item.id === scene) }]);
+      }, { conversation: defaultConversations.find((item) => item.id === scene), target: primaryTarget }]);
     }
     assert.equal(getLead.mock.callCount(), 0);
     assert.equal(getToken.mock.callCount(), 0);
@@ -243,7 +244,7 @@ test('a saved custom trigger schedules its selected conversation snapshot', asyn
   await tasks.pop()();
   assert.deepEqual(runDemoReplies.mock.calls.at(-1).arguments, [
     { scene: custom.id, channel: demoConfig.slackChannel, ts: '1789000200.123456', user: 'UPRESENTER' },
-    { conversation: custom },
+    { conversation: custom, target: primaryTarget },
   ]);
 });
 

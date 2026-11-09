@@ -3,7 +3,10 @@ import { Redis } from '@upstash/redis';
 import { getToken } from '@vercel/connect';
 import { conversationSchema, defaultConversations, normalizeTrigger } from './conversations';
 import type { Conversation } from './conversations';
-import { buildConversationMessage, slackCall, target } from './demo-runner.mjs';
+import { buildConversationMessage, slackCall } from './demo-runner.mjs';
+import { primaryTarget } from './slack-targets.mjs';
+
+export type SlackTarget = { connector: string; appId: string; team: string; channel: string };
 
 export type DemoTrigger = { scene: string; channel: string; ts: string; user: string };
 type Receipt = { channel: string; ts: string; thread_ts: string };
@@ -24,6 +27,7 @@ type Options = {
   wait?: (ms: number, signal: AbortSignal) => Promise<void>;
   signal?: AbortSignal;
   conversation?: Conversation;
+  target?: SlackTarget;
 };
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -31,7 +35,7 @@ function record(value: unknown): Record<string, unknown> | null {
     ? value as Record<string, unknown> : null;
 }
 
-function validTrigger(value: unknown, conversation?: Conversation): value is DemoTrigger & Record<string, unknown> {
+function validTrigger(value: unknown, conversation: Conversation | undefined, target: SlackTarget): value is DemoTrigger & Record<string, unknown> {
   const event = record(value);
   return !!event && !!conversation && event.scene === conversation.id && conversation.enabled
     && typeof event.user === 'string' && /^U[A-Z0-9]+$/.test(event.user)
@@ -40,7 +44,7 @@ function validTrigger(value: unknown, conversation?: Conversation): value is Dem
     && typeof event.ts === 'string' && /^\d+\.\d+$/.test(event.ts);
 }
 
-export function isDemoMessageCandidate(event: unknown): boolean {
+export function isDemoMessageCandidate(event: unknown, target: SlackTarget = primaryTarget): boolean {
   const message = record(event);
   return !!message && message.type === 'message'
     && message.channel_type === 'channel'
@@ -52,18 +56,23 @@ export function isDemoMessageCandidate(event: unknown): boolean {
     && typeof message.ts === 'string' && /^\d+\.\d+$/.test(message.ts);
 }
 
-export function matchDemoTrigger(event: unknown, conversations: Conversation[] = defaultConversations): DemoTrigger | null {
-  if (!isDemoMessageCandidate(event)) return null;
+export function matchDemoTrigger(
+  event: unknown,
+  conversations: Conversation[] = defaultConversations,
+  target: SlackTarget = primaryTarget,
+): DemoTrigger | null {
+  if (!isDemoMessageCandidate(event, target)) return null;
   const message = record(event)!;
   const conversation = conversations.find((item) => item.enabled
     && normalizeTrigger(item.trigger) === normalizeTrigger(message.text as string));
   const trigger = { scene: conversation?.id, channel: message.channel, ts: message.ts, user: message.user };
-  return validTrigger(trigger, conversation) ? trigger : null;
+  return validTrigger(trigger, conversation, target) ? trigger : null;
 }
 
 export async function runDemoReplies(trigger: DemoTrigger, options: Options = {}): Promise<void> {
+  const target = options.target ?? primaryTarget;
   const selected = options.conversation ?? defaultConversations.find((item) => item.id === trigger?.scene);
-  if (!selected || !conversationSchema.safeParse(selected).success || !validTrigger(trigger, selected)) {
+  if (!selected || !conversationSchema.safeParse(selected).success || !validTrigger(trigger, selected, target)) {
     throw new Error('Invalid demo trigger.');
   }
   const { channel, ts } = trigger;
