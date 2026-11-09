@@ -104,7 +104,7 @@ test('rejects the website kickoff and every non-kickoff scene line, even with fo
 });
 
 for (const scene of ['seed', 'playbook']) {
-  test(`${scene}: rejects nonhuman, private, DM, threaded, edited, partial, and malformed events`, () => {
+  test(`${scene}: rejects system, private, DM, threaded, edited, partial, and malformed events`, () => {
     const opener = scenes[scene][0].text;
     const message = (overrides = {}) => event({ text: opener, ...overrides });
     for (const value of [null, undefined, [], true, 'message', {}, ...[
@@ -112,7 +112,7 @@ for (const scene of ['seed', 'playbook']) {
       { user: 'not-a-user' }, { user: undefined }, { channel: 'COTHERPUBLIC' }, { channel: 'GPRIVATE' }, { channel: 'DDIRECT' },
       { channel: 'Cbad' }, { channel: 'C' }, { channel: 'C123:bad' }, { channel: 123 },
       { ts: undefined }, { ts: 123 }, { ts: '123' }, { ts: '123.456:bad' },
-      { subtype: 'message_changed' }, { subtype: 'message_deleted' }, { subtype: 'bot_message' },
+      { subtype: 'message_changed' }, { subtype: 'message_deleted' }, { subtype: 'channel_join' },
       { text: opener.slice(0, -1) }, { text: `prefix ${opener}` },
       { text: `${opener} extra` }, { text: opener.toLowerCase() },
       { text: '' }, { text: null },
@@ -129,6 +129,70 @@ for (const scene of ['seed', 'playbook']) {
     }
   });
 }
+
+// Slack delivers a Workflow Builder post either as a `bot_message` without a user
+// or as a message from the workflow's bot user.
+const { user: _human, ...unattributed } = event();
+const workflowEvents = [
+  [{ ...unattributed, subtype: 'bot_message', bot_id: 'BWORKFLOW', username: 'Website workflow' },
+    { bot_id: 'BWORKFLOW' }],
+  [event({ user: 'UWORKFLOW', bot_id: 'BWORKFLOW', app_id: 'AWORKFLOW',
+    bot_profile: { id: 'BWORKFLOW', app_id: 'AWORKFLOW', is_workflow_bot: true } }),
+    { user: 'UWORKFLOW', bot_id: 'BWORKFLOW' }],
+];
+// The worker asks Slack which bot it is before answering a bot-authored kickoff.
+const identifiedAs = (h, botId) => ({
+  ...h.options,
+  call: async (token, method, body) => {
+    if (method !== 'auth.test') return h.options.call(token, method, body);
+    h.calls.push({ method, body });
+    return { data: { ok: true, bot_id: botId } };
+  },
+});
+
+test('matches exact kickoff posted by a workflow or another app', () => {
+  for (const scene of ['seed', 'playbook']) {
+    const text = scenes[scene][0].text;
+    for (const [value, sender] of workflowEvents) {
+      assert.deepEqual(matchDemoTrigger({ ...value, text }), {
+        scene, channel: demoConfig.slackChannel, ts: '1789000000.123456', ...sender,
+      });
+      for (const overrides of [{ text: `${text} extra` }, { thread_ts: '1789000000.000001' },
+        { channel: 'COTHERPUBLIC' }, { bot_id: 'not-a-bot' }, { subtype: 'message_changed' }]) {
+        assert.equal(matchDemoTrigger({ ...value, text, ...overrides }), null, JSON.stringify(overrides));
+      }
+    }
+  }
+});
+
+test('a workflow kickoff gets the scripted replies in its thread', async () => {
+  for (const [message, sender] of workflowEvents) {
+    const h = harness();
+    const value = matchDemoTrigger(message);
+    await runDemoReplies(value, identifiedAs(h, 'BDEMO'));
+    assert.deepEqual(h.calls.slice(0, 2), [
+      { method: 'auth.test', body: {} },
+      { method: 'conversations.info', body: { channel: value.channel } },
+    ]);
+    assert.deepEqual(h.calls.slice(2).map(({ body }) => body),
+      scenes.seed.slice(1).map((line) => buildMessage(line, value.ts, value.channel)));
+    assert.equal(h.records.get(keyFor(value)).status, 'complete');
+    assert.equal(value.bot_id, sender.bot_id);
+  }
+});
+
+test('a demo app never answers its own kickoff post', async () => {
+  for (const own of [{ app_id: target.appId }, { bot_profile: { app_id: target.appId } },
+    { app_id: 'AOTHER', bot_profile: { app_id: target.appId } }]) {
+    assert.equal(matchDemoTrigger({ ...workflowEvents[0][0], bot_id: 'BDEMO', ...own }), null, JSON.stringify(own));
+  }
+  // An event without any app ID is still recognized by the app's own bot ID.
+  const h = harness();
+  const value = matchDemoTrigger(workflowEvents[0][0]);
+  await runDemoReplies(value, identifiedAs(h, 'BWORKFLOW'));
+  assert.deepEqual(h.calls, [{ method: 'auth.test', body: {} }]);
+  assert.deepEqual(h.records.get(keyFor(value)), { status: 'complete', receipts: [] });
+});
 
 test('worker guards scene/user/channel/ts before storage or external side effects', async () => {
   const h = harness();
