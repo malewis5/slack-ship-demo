@@ -34,6 +34,22 @@ and have permission to read channel messages and post replies. These environment
 variables override the example IDs without putting workspace details in the
 public repository. No credentials are included in this repository.
 
+### More than one Slack app
+
+One deployment can serve several Slack apps, each with its own Vercel Connect
+connector, workspace, and channel. The variables above define the primary app.
+Add each extra app to the private `SLACK_EXTRA_TARGETS` variable as a JSON array:
+
+```json
+[{"connector":"slack/second-agent","appId":"A…","teamId":"T…","channel":"C…"}]
+```
+
+Each connector must forward its Slack events to `/triggers/slack` on this
+deployment. An event only runs scripted threads in the channel of the app and
+workspace it came from; unknown app/workspace pairs get 403. Invalid entries are
+logged and ignored, and the primary app keeps working. The contact form and
+`pnpm demo` still post through the primary app.
+
 ## Conversation editor
 
 Open `/cms` to create and edit scripted Slack conversations. Set
