@@ -4,11 +4,13 @@ import { getToken } from '@vercel/connect';
 import { conversationSchema, defaultConversations, normalizeTrigger } from './conversations';
 import type { Conversation } from './conversations';
 import { buildConversationMessage, slackCall } from './demo-runner.mjs';
-import { primaryTarget } from './slack-targets.mjs';
+import { primaryTarget, slackTargets } from './slack-targets.mjs';
 
 export type SlackTarget = { connector: string; appId: string; team: string; channel: string };
 
-export type DemoTrigger = { scene: string; channel: string; ts: string; user: string };
+// A kickoff comes from a person (`user`) or an automation such as a Workflow
+// Builder step (`bot_id`, often without `user`).
+export type DemoTrigger = { scene: string; channel: string; ts: string; user?: string; bot_id?: string };
 type Receipt = { channel: string; ts: string; thread_ts: string };
 type Progress = {
   status: 'running' | 'complete' | 'needs-review';
@@ -35,10 +37,23 @@ function record(value: unknown): Record<string, unknown> | null {
     ? value as Record<string, unknown> : null;
 }
 
+// Either sender field, when present, must be well formed; at least one is required.
+function validSender(value: Record<string, unknown>): boolean {
+  return ('user' in value ? typeof value.user === 'string' && /^U[A-Z0-9]+$/.test(value.user) : 'bot_id' in value)
+    && (!('bot_id' in value) || (typeof value.bot_id === 'string' && /^B[A-Z0-9]+$/.test(value.bot_id)));
+}
+
+// `pnpm demo` posts kickoff lines through the demo apps and then plays the thread
+// itself, so a configured app's own messages must never start a second thread.
+function fromDemoApp(message: Record<string, unknown>, target: SlackTarget): boolean {
+  const ids = [message.app_id, record(message.bot_profile)?.app_id];
+  return [target, ...slackTargets].some((app) => ids.includes(app.appId));
+}
+
 function validTrigger(value: unknown, conversation: Conversation | undefined, target: SlackTarget): value is DemoTrigger & Record<string, unknown> {
   const event = record(value);
   return !!event && !!conversation && event.scene === conversation.id && conversation.enabled
-    && typeof event.user === 'string' && /^U[A-Z0-9]+$/.test(event.user)
+    && validSender(event)
     && typeof event.channel === 'string' && event.channel === target.channel
     && /^C[A-Z0-9]+$/.test(event.channel)
     && typeof event.ts === 'string' && /^\d+\.\d+$/.test(event.ts);
@@ -48,9 +63,12 @@ export function isDemoMessageCandidate(event: unknown, target: SlackTarget = pri
   const message = record(event);
   return !!message && message.type === 'message'
     && message.channel_type === 'channel'
-    && !['subtype', 'bot_id', 'app_id', 'hidden', 'thread_ts', 'edited'].some((key) => key in message)
+    && !['hidden', 'thread_ts', 'edited'].some((key) => key in message)
+    // Automations post with `bot_id`, and usually `app_id` or the `bot_message` subtype.
+    && (!('subtype' in message) || message.subtype === 'bot_message')
+    && (!('app_id' in message) || (typeof message.app_id === 'string' && /^A[A-Z0-9]+$/.test(message.app_id)))
+    && validSender(message) && !fromDemoApp(message, target)
     && typeof message.text === 'string'
-    && typeof message.user === 'string' && /^U[A-Z0-9]+$/.test(message.user)
     && typeof message.channel === 'string' && message.channel === target.channel
     && /^C[A-Z0-9]+$/.test(message.channel)
     && typeof message.ts === 'string' && /^\d+\.\d+$/.test(message.ts);
@@ -65,7 +83,11 @@ export function matchDemoTrigger(
   const message = record(event)!;
   const conversation = conversations.find((item) => item.enabled
     && normalizeTrigger(item.trigger) === normalizeTrigger(message.text as string));
-  const trigger = { scene: conversation?.id, channel: message.channel, ts: message.ts, user: message.user };
+  const trigger = {
+    scene: conversation?.id, channel: message.channel, ts: message.ts,
+    ...('user' in message ? { user: message.user } : {}),
+    ...('bot_id' in message ? { bot_id: message.bot_id } : {}),
+  };
   return validTrigger(trigger, conversation, target) ? trigger : null;
 }
 
@@ -132,6 +154,15 @@ export async function runDemoReplies(trigger: DemoTrigger, options: Options = {}
         if (!result) throw new Error('Missing Slack response.');
         return result;
       });
+    // Events do not always carry an app ID, so confirm a bot kickoff is not this app's own post.
+    if (trigger.bot_id) {
+      const { data: self } = await call('auth.test', {});
+      if (record(self)?.bot_id === trigger.bot_id) {
+        progress.status = 'complete';
+        await save();
+        return;
+      }
+    }
     const { data: info } = await call('conversations.info', { channel });
     const threadChannel = record(record(info)?.channel);
     if (!threadChannel || threadChannel.id !== channel || threadChannel.is_private !== false

@@ -180,10 +180,12 @@ for (const scene of ['seed', 'playbook']) {
 }
 
 for (const scene of ['seed', 'playbook']) {
-  test(`${scene}: ordinary messages, other channels, bots, edits, private channels and thread replies do not schedule`, async () => {
+  test(`${scene}: ordinary messages, other channels, the demo app, edits, private channels and thread replies do not schedule`, async () => {
     for (const overrides of [
       { text: 'hello' }, { user: undefined }, { channel: 'COTHERPUBLIC' },
-      { bot_id: 'BTEST' }, { app_id: 'ATEST' }, { subtype: 'bot_message' }, { hidden: false },
+      { bot_id: 'BDEMO', app_id: demoConfig.slackAppId }, { bot_id: 'not-a-bot' }, { app_id: 'not-an-app' },
+      { subtype: 'bot_message', bot_id: 'BDEMO', bot_profile: { app_id: demoConfig.slackAppId } },
+      { subtype: 'channel_join' }, { hidden: false },
       { subtype: 'message_changed' }, { edited: { user: 'UPRESENTER', ts: '1789000300.000001' } },
       { thread_ts: '1789000000.000001' }, { subtype: null }, { edited: null },
       { channel_type: 'group' }, { channel_type: 'im' }, { channel_type: 'mpim' },
@@ -220,6 +222,24 @@ for (const scene of ['seed', 'playbook']) {
     assert.equal(getToken.mock.callCount(), 0);
   });
 }
+
+test('a workflow kickoff schedules the scripted replies', async () => {
+  for (const [overrides, sender] of [
+    [{ user: undefined, subtype: 'bot_message', bot_id: 'BWORKFLOW', username: 'Website workflow' },
+      { bot_id: 'BWORKFLOW' }],
+    [{ user: 'UWORKFLOW', bot_id: 'BWORKFLOW', app_id: 'AWORKFLOW',
+      bot_profile: { id: 'BWORKFLOW', app_id: 'AWORKFLOW', is_workflow_bot: true } },
+      { user: 'UWORKFLOW', bot_id: 'BWORKFLOW' }],
+  ]) {
+    assert.equal((await POST(request(kickoff(overrides)))).status, 200);
+    assert.equal(tasks.length, 1);
+    await tasks.pop()();
+    assert.deepEqual(runDemoReplies.mock.calls.at(-1).arguments, [{
+      scene: 'seed', channel: demoConfig.slackChannel, ts: '1789000200.123456', ...sender,
+    }, { conversation: defaultConversations.find((item) => item.id === 'seed'), target: primaryTarget }]);
+  }
+  assert.equal(runDemoReplies.mock.callCount(), 2);
+});
 
 test('website kickoff is acknowledged without scheduling any demo, even with an allowlisted scene field', async () => {
   for (const scene of [undefined, 'seed', 'playbook', 'website']) {

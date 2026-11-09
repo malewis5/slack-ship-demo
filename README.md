@@ -28,8 +28,9 @@ requires an AI Gateway key or linked Vercel development credentials.
 `demo.config.json` contains example Slack app, workspace, and channel IDs. For a
 deployment, set `SLACK_APP_ID`, `SLACK_TEAM_ID`, and `SLACK_CHANNEL_ID` as private
 Vercel environment variables before enabling the webhook or running the demo
-scripts. Any human who posts an exact demo kickoff message in that public channel
-can start its scripted thread. The Slack app must subscribe to `message.channels`
+scripts. Any person, Workflow Builder step, or other app that posts an exact demo
+kickoff message in that public channel can start its scripted thread; the demo
+apps' own posts never do. The Slack app must subscribe to `message.channels`
 and have permission to read channel messages and post replies. These environment
 variables override the example IDs without putting workspace details in the
 public repository. No credentials are included in this repository.
@@ -58,7 +59,8 @@ editor; sign in with username `editor` and that password. The editor lets you
 choose an exact message trigger, the team members and their Slack emoji icons,
 and up to eight ordered replies. Saving an enabled conversation makes it live
 immediately in the configured public Slack channel. Copy the trigger from the
-editor and post it as a new human message in that channel to start a thread.
+editor and post it as a new message in that channel, yourself or from a
+workflow, to start a thread.
 Disable a conversation to stop new triggers without deleting its script.
 
 Conversation records live in the same Upstash Redis database as the lead data,
