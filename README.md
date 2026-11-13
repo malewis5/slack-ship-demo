@@ -29,9 +29,11 @@ requires an AI Gateway key or linked Vercel development credentials.
 deployment, set `SLACK_APP_ID`, `SLACK_TEAM_ID`, and `SLACK_CHANNEL_ID` as private
 Vercel environment variables before enabling the webhook or running the demo
 scripts. Any person, Workflow Builder step, or other app that posts an exact demo
-kickoff message in that public channel can start its scripted thread; the demo
-apps' own posts never do. The Slack app must subscribe to `message.channels`
-and have permission to read channel messages and post replies. These environment
+kickoff message in any public or private channel the Slack app has been added
+to can start its scripted thread there; the demo apps' own posts never do.
+`SLACK_CHANNEL_ID` is only where `pnpm demo` posts its kickoffs. The Slack app
+must subscribe to `message.channels` (and `message.groups` for private
+channels) and have permission to read channel messages and post replies. These environment
 variables override the example IDs without putting workspace details in the
 public repository. No credentials are included in this repository.
 
@@ -46,8 +48,8 @@ Add each extra app to the private `SLACK_EXTRA_TARGETS` variable as a JSON array
 ```
 
 Each connector must forward its Slack events to `/triggers/slack` on this
-deployment. An event only runs scripted threads in the channel of the app and
-workspace it came from; unknown app/workspace pairs get 403. Invalid entries are
+deployment. Each app runs scripted threads in any channel it is a member of,
+in the workspace the event came from; unknown app/workspace pairs get 403. Invalid entries are
 logged and ignored, and the primary app keeps working. The contact form and
 `pnpm demo` still post through the primary app.
 
