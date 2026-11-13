@@ -180,16 +180,15 @@ for (const scene of ['seed', 'playbook']) {
 }
 
 for (const scene of ['seed', 'playbook']) {
-  test(`${scene}: ordinary messages, other channels, the demo app, edits, private channels and thread replies do not schedule`, async () => {
+  test(`${scene}: ordinary messages, the demo app, edits, DMs and thread replies do not schedule`, async () => {
     for (const overrides of [
-      { text: 'hello' }, { user: undefined }, { channel: 'COTHERPUBLIC' },
+      { text: 'hello' }, { user: undefined },
       { bot_id: 'BDEMO', app_id: demoConfig.slackAppId }, { bot_id: 'not-a-bot' }, { app_id: 'not-an-app' },
       { subtype: 'bot_message', bot_id: 'BDEMO', bot_profile: { app_id: demoConfig.slackAppId } },
       { subtype: 'channel_join' }, { hidden: false },
       { subtype: 'message_changed' }, { edited: { user: 'UPRESENTER', ts: '1789000300.000001' } },
       { thread_ts: '1789000000.000001' }, { subtype: null }, { edited: null },
-      { channel_type: 'group' }, { channel_type: 'im' }, { channel_type: 'mpim' },
-      { channel: 'GPRIVATE' }, { channel: 'DDIRECT' },
+      { channel_type: 'im' }, { channel_type: 'mpim' }, { channel: 'DDIRECT' },
     ]) {
       assert.equal((await POST(request(kickoff({ text: scenes[scene][0].text, ...overrides })))).status, 200);
       while (tasks.length) await tasks.pop()();

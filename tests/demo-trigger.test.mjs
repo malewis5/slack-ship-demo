@@ -89,8 +89,23 @@ test('the Services kickoff replaces the retired furniture kickoff', () => {
   assert.match(scenes.seed[0].text, /Services section/);
   assert.ok(matchDemoTrigger(event()));
   assert.equal(matchDemoTrigger(event({ user: 'UOTHER' }))?.user, 'UOTHER');
-  assert.equal(matchDemoTrigger(event({ channel: 'COTHERPUBLIC' })), null);
+  assert.equal(matchDemoTrigger(event({ channel: 'COTHERPUBLIC' }))?.channel, 'COTHERPUBLIC');
   assert.equal(matchDemoTrigger(event({ text: 'Another inquiry for a single desk this morning. We’re getting a lot of these, but the projects we’re best at are furnishing whole offices. Are we setting the right expectation on the website?' })), null);
+});
+
+test('kickoffs work in any public or private channel the app is in', async () => {
+  for (const overrides of [{ channel: 'COTHERPUBLIC' }, { channel_type: 'group', channel: 'CPRIVATE' },
+    { channel_type: 'group', channel: 'GLEGACYPRIVATE' }]) {
+    const trigger = matchDemoTrigger(event(overrides));
+    assert.equal(trigger?.channel, overrides.channel, JSON.stringify(overrides));
+    const h = harness();
+    const original = h.options.call;
+    h.options.call = async (token, method, body, options) => method === 'conversations.info'
+      ? { data: { channel: { id: body.channel, is_private: overrides.channel_type === 'group', is_archived: false } } }
+      : original(token, method, body, options);
+    await runDemoReplies(trigger, h.options);
+    assert.equal(h.records.get(keyFor(trigger)).status, 'complete');
+  }
 });
 
 test('rejects the website kickoff and every non-kickoff scene line, even with forged scene metadata', () => {
@@ -104,12 +119,12 @@ test('rejects the website kickoff and every non-kickoff scene line, even with fo
 });
 
 for (const scene of ['seed', 'playbook']) {
-  test(`${scene}: rejects system, private, DM, threaded, edited, partial, and malformed events`, () => {
+  test(`${scene}: rejects system, DM, threaded, edited, partial, and malformed events`, () => {
     const opener = scenes[scene][0].text;
     const message = (overrides = {}) => event({ text: opener, ...overrides });
     for (const value of [null, undefined, [], true, 'message', {}, ...[
-      { type: 'app_mention' }, { channel_type: 'group' }, { channel_type: 'im' }, { channel_type: 'mpim' },
-      { user: 'not-a-user' }, { user: undefined }, { channel: 'COTHERPUBLIC' }, { channel: 'GPRIVATE' }, { channel: 'DDIRECT' },
+      { type: 'app_mention' }, { channel_type: 'im' }, { channel_type: 'mpim' },
+      { user: 'not-a-user' }, { user: undefined }, { channel: 'DDIRECT' }, { channel: 'G' }, { channel: 'Gbad' },
       { channel: 'Cbad' }, { channel: 'C' }, { channel: 'C123:bad' }, { channel: 123 },
       { ts: undefined }, { ts: 123 }, { ts: '123' }, { ts: '123.456:bad' },
       { subtype: 'message_changed' }, { subtype: 'message_deleted' }, { subtype: 'channel_join' },
@@ -158,7 +173,7 @@ test('matches exact kickoff posted by a workflow or another app', () => {
         scene, channel: demoConfig.slackChannel, ts: '1789000000.123456', ...sender,
       });
       for (const overrides of [{ text: `${text} extra` }, { thread_ts: '1789000000.000001' },
-        { channel: 'COTHERPUBLIC' }, { bot_id: 'not-a-bot' }, { subtype: 'message_changed' }]) {
+        { channel: 'DDIRECT' }, { bot_id: 'not-a-bot' }, { subtype: 'message_changed' }]) {
         assert.equal(matchDemoTrigger({ ...value, text, ...overrides }), null, JSON.stringify(overrides));
       }
     }
@@ -202,7 +217,7 @@ test('worker guards scene/user/channel/ts before storage or external side effect
     ...[undefined, null, '', 'website', 'unknown', 'SEED', 'toString', '__proto__', 123, ['seed'], {}]
       .map((scene) => ({ ...trigger(), scene }))];
   for (const scene of ['seed', 'playbook']) {
-    for (const overrides of [{ user: 'not-a-user' }, { user: undefined }, { channel: 'COTHERPUBLIC' }, { channel: 'GPRIVATE' },
+    for (const overrides of [{ user: 'not-a-user' }, { user: undefined }, { channel: 'Cbad' },
       { channel: 'DDIRECT' }, { ts: 'invalid' }]) {
       invalid.push({ ...trigger(), scene, ...overrides });
     }
@@ -435,10 +450,9 @@ test('ambiguous post failure preserves pending and is never automatically replay
   assert.equal(h.calls.length, 2);
 });
 
-test('channel info must confirm matching id, explicitly public and not archived', async () => {
+test('channel info must confirm matching id and explicitly not archived', async () => {
   for (const channel of [undefined, null, {}, { id: 'COTHER', is_private: false, is_archived: false },
-    { id: 'CEXAMPLECHANNEL', is_private: true, is_archived: false },
-    { id: 'CEXAMPLECHANNEL', is_archived: false }, { id: 'CEXAMPLECHANNEL', is_private: false },
+    { id: 'CEXAMPLECHANNEL', is_private: false },
     { id: 'CEXAMPLECHANNEL', is_private: false, is_archived: true }]) {
     const h = harness();
     h.options.call = async (_token, method, body) => {

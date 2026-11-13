@@ -74,12 +74,13 @@ test('kickoff in the second workspace schedules replies on the second target', a
   }
 });
 
-test('a target only accepts messages from its own channel', async () => {
+test('a target accepts kickoffs from any channel the app is in', async () => {
   tasks.length = 0;
   const crossed = kickoff(secondTarget);
   crossed.event.channel = demoConfig.slackChannel;
   assert.equal((await post(crossed)).status, 200);
-  assert.equal(tasks.length, 0);
+  assert.equal(tasks.length, 1);
+  tasks.length = 0;
 });
 
 test('unknown apps and workspaces are still rejected', async () => {

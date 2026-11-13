@@ -50,27 +50,31 @@ function fromDemoApp(message: Record<string, unknown>, target: SlackTarget): boo
   return [target, ...slackTargets].some((app) => ids.includes(app.appId));
 }
 
+// Slack only delivers channel message events for conversations the app is a
+// member of, so any public or private channel the bot is in may start a demo.
+// Private channels use `C…` IDs today and `G…` IDs on older workspaces.
+const CHANNEL_ID = /^[CG][A-Z0-9]+$/;
+
 function validTrigger(value: unknown, conversation: Conversation | undefined, target: SlackTarget): value is DemoTrigger & Record<string, unknown> {
   const event = record(value);
   return !!event && !!conversation && event.scene === conversation.id && conversation.enabled
     && validSender(event)
-    && typeof event.channel === 'string' && event.channel === target.channel
-    && /^C[A-Z0-9]+$/.test(event.channel)
+    && typeof event.channel === 'string' && CHANNEL_ID.test(event.channel)
     && typeof event.ts === 'string' && /^\d+\.\d+$/.test(event.ts);
 }
 
 export function isDemoMessageCandidate(event: unknown, target: SlackTarget = primaryTarget): boolean {
   const message = record(event);
   return !!message && message.type === 'message'
-    && message.channel_type === 'channel'
+    // Public (`channel`) and private (`group`) channels; never DMs or group DMs.
+    && (message.channel_type === 'channel' || message.channel_type === 'group')
     && !['hidden', 'thread_ts', 'edited'].some((key) => key in message)
     // Automations post with `bot_id`, and usually `app_id` or the `bot_message` subtype.
     && (!('subtype' in message) || message.subtype === 'bot_message')
     && (!('app_id' in message) || (typeof message.app_id === 'string' && /^A[A-Z0-9]+$/.test(message.app_id)))
     && validSender(message) && !fromDemoApp(message, target)
     && typeof message.text === 'string'
-    && typeof message.channel === 'string' && message.channel === target.channel
-    && /^C[A-Z0-9]+$/.test(message.channel)
+    && typeof message.channel === 'string' && CHANNEL_ID.test(message.channel)
     && typeof message.ts === 'string' && /^\d+\.\d+$/.test(message.ts);
 }
 
@@ -165,7 +169,7 @@ export async function runDemoReplies(trigger: DemoTrigger, options: Options = {}
     }
     const { data: info } = await call('conversations.info', { channel });
     const threadChannel = record(record(info)?.channel);
-    if (!threadChannel || threadChannel.id !== channel || threadChannel.is_private !== false
+    if (!threadChannel || threadChannel.id !== channel
       || threadChannel.is_archived !== false) throw new Error('Demo channel unavailable.');
 
     const replies = selected.replies;
