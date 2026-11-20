@@ -53,7 +53,7 @@ export function Services(): JSX.Element {
           <div className="relative aspect-[4/3] w-full overflow-hidden border border-[var(--ds-gray-alpha-400)] lg:aspect-auto lg:min-h-96 lg:flex-1">
             <Image
               src="/images/display-case.png"
-              alt="Custom glass display case with objects arranged on individual mounts"
+              alt="Glass display case showcasing a sculptural object on a raised plinth"
               fill
               sizes="(min-width: 1024px) 456px, (min-width: 961px) calc((100vw - 112px) / 2), (min-width: 401px) calc(100vw - 64px), calc(100vw - 40px)"
               className="object-cover"
