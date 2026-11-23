@@ -77,3 +77,38 @@ conversation do not replay or modify threads that have already started.
 - `components/ui/controls.tsx` implements the buttons and form fields.
 - `app/api/contact/route.ts` receives validated contact submissions.
 - `agent/` and `scripts/` contain the optional research and demo workflows.
+
+## Automatic contact acknowledgment
+
+Each valid contact submission that is successfully saved starts a transactional
+thank-you email independently of lead research and Slack delivery. The email says:
+
+> Thank you for reaching out to NYC Framing!
+>
+> We’re reviewing your request and will reach out within the next week.
+>
+> The NYC Framing team
+
+Set these server-only environment variables in the deployment environment:
+
+- `RESEND_API_KEY`: enter a Resend sending API key directly in Vercel's
+  Environment Variables settings. Never commit it or share it in chat.
+- `CONTACT_EMAIL_FROM`: a sender on your verified Resend domain, for example
+  `NYC Framing <hello@your-verified-domain.com>`. Use a monitored mailbox so
+  customers can reply. There is no fallback sender or recipient.
+
+Redeploy after configuring the variables. See [Resend's send API](https://resend.com/docs/api-reference/emails/send-email).
+For previews, use a separate test key/sender and submit only an address you control.
+Invalid or unsaved submissions never trigger email. Missing configuration or
+provider failures are logged with the lead ID, without addresses or provider
+error bodies; saved leads and Slack processing remain intact. The form confirms
+receipt, not email delivery. Network errors, HTTP 429, and 5xx responses get up
+to three attempts with one idempotency key per saved lead (Resend retains it for
+24 hours). After those attempts there is no durable retry queue; operators must
+investigate failures in logs/Resend. Separate form submissions create separate
+leads and receipts. This sends only the receipt, not a marketing sequence or a
+scheduled one-week follow-up; your team still handles that response.
+
+Run `pnpm test:contact` to test the form, email payload/retries, and isolation from
+research/Slack using mocked services. A real inbox delivery test requires the
+configured sender and key.

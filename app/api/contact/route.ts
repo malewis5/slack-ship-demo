@@ -2,6 +2,7 @@ import { after } from "next/server.js";
 import { getToken } from "@vercel/connect";
 import { buildContactSlackMessage } from "./slack-message";
 import { contactSubmissionSchema } from "../../../lib/contact";
+import { sendContactAcknowledgment } from "../../../lib/contact-email";
 import { enrichLead } from "../../../lib/lead-enrichment";
 import { createLead, saveLead, type StoredLead } from "../../../lib/lead-store";
 import demoConfig from "../../../demo.config.json" with { type: "json" };
@@ -39,6 +40,16 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   after(async () => {
+    // Start independently of research/Slack, but keep both tasks alive with after().
+    const acknowledgment = sendContactAcknowledgment(lead.id, submission.data).catch(
+      () => {
+        // Provider errors may contain addresses or credentials; never log them.
+        console.error(
+          "Contact acknowledgment failed; check email configuration and provider logs.",
+          lead.id,
+        );
+      },
+    );
     try {
       const enrichment = await enrichLead(submission.data);
       lead = { ...lead, enrichment, updatedAt: Math.floor(Date.now() / 1000) };
@@ -87,6 +98,8 @@ export async function POST(request: Request): Promise<Response> {
       console.error(
         "Contact enrichment or Slack delivery failed; the submitted lead remains saved.",
       );
+    } finally {
+      await acknowledgment;
     }
   });
 

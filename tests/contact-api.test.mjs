@@ -44,6 +44,10 @@ const storedLead = (submission) => ({ ...identity, submission });
 const enrichLead = mock.fn(async () => complete);
 const createLead = mock.fn(async (submission) => storedLead(submission));
 const saveLead = mock.fn(async () => {});
+const sendContactAcknowledgment = mock.fn(async () => {});
+mock.module(new URL("../lib/contact-email.ts", import.meta.url).href, {
+  namedExports: { sendContactAcknowledgment },
+});
 mock.module("next/server.js", {
   namedExports: { after: (callback) => tasks.push(callback) },
 });
@@ -75,6 +79,8 @@ function request(body) {
 
 beforeEach((t) => {
   tasks.length = 0;
+  sendContactAcknowledgment.mock.resetCalls();
+  sendContactAcknowledgment.mock.mockImplementation(async () => {});
   getToken.mock.resetCalls();
   getToken.mock.mockImplementation(async () => "test-token");
   enrichLead.mock.resetCalls();
@@ -106,6 +112,7 @@ test("rejects invalid submissions without scheduling background work", async () 
     assert.equal(typeof (await response.json()).error, "string");
   }
   assert.equal(tasks.length, 0);
+  assert.equal(sendContactAcknowledgment.mock.callCount(), 0);
   assert.equal(createLead.mock.callCount(), 0);
   assert.equal(saveLead.mock.callCount(), 0);
   assert.equal(enrichLead.mock.callCount(), 0);
@@ -125,6 +132,7 @@ test("requires a valid budget before persistence or any background work", async 
     assert.deepEqual(await response.json(), { error: "Select a budget." });
   }
   assert.equal(tasks.length, 0);
+  assert.equal(sendContactAcknowledgment.mock.callCount(), 0);
   assert.equal(createLead.mock.callCount(), 0);
   assert.equal(saveLead.mock.callCount(), 0);
   assert.equal(enrichLead.mock.callCount(), 0);
@@ -160,6 +168,7 @@ test("waits for the original submission to be saved before accepting, without st
   await new Promise(setImmediate);
   assert.equal(acknowledged, false);
   assert.equal(tasks.length, 0);
+  assert.equal(sendContactAcknowledgment.mock.callCount(), 0);
   assert.equal(enrichLead.mock.callCount(), 0);
   assert.equal(getToken.mock.callCount(), 0);
   write.resolve(storedLead(submission));
@@ -182,6 +191,7 @@ test("failed initial persistence returns a generic 503 without scheduling work o
   });
   assert.equal(createLead.mock.callCount(), 1);
   assert.equal(tasks.length, 0);
+  assert.equal(sendContactAcknowledgment.mock.callCount(), 0);
   assert.equal(enrichLead.mock.callCount(), 0);
   assert.equal(saveLead.mock.callCount(), 0);
   assert.equal(getToken.mock.callCount(), 0);
@@ -400,4 +410,51 @@ test("Slack delivery errors are caught after acceptance", async (t) => {
   assert.deepEqual(await response.json(), { ok: true });
   await assert.doesNotReject(tasks[0]);
   assert.equal(log.mock.callCount(), 1);
+});
+
+test("starts email while research is pending and waits for email before finishing background work", async (t) => {
+  const research = Promise.withResolvers();
+  const email = Promise.withResolvers();
+  t.after(() => { research.resolve(complete); email.resolve(); });
+  enrichLead.mock.mockImplementation(() => research.promise);
+  sendContactAcknowledgment.mock.mockImplementation(() => email.promise);
+  t.mock.method(globalThis, "fetch", async () => Response.json({ ok: true }));
+  assert.equal((await POST(request(submission))).status, 202);
+  assert.equal(sendContactAcknowledgment.mock.callCount(), 0);
+  let finished = false;
+  const work = tasks[0]().then(() => { finished = true; });
+  assert.deepEqual(sendContactAcknowledgment.mock.calls[0].arguments, [identity.id, submission]);
+  assert.equal(enrichLead.mock.callCount(), 1);
+  research.resolve(complete);
+  await new Promise(setImmediate);
+  assert.equal(globalThis.fetch.mock.callCount(), 1, "Slack should not wait for email");
+  assert.equal(finished, false);
+  email.resolve();
+  await work;
+  assert.equal(finished, true);
+});
+
+test("email failure does not interrupt research, Slack, or the accepted response", async (t) => {
+  sendContactAcknowledgment.mock.mockImplementation(async () => { throw new Error(`private-provider: ${submission.email}`); });
+  const log = t.mock.method(console, "error", () => {});
+  t.mock.method(globalThis, "fetch", async () => Response.json({ ok: true }));
+  const response = await POST(request(submission));
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), { ok: true });
+  await assert.doesNotReject(tasks[0]);
+  assert.equal(globalThis.fetch.mock.callCount(), 1);
+  assert.equal(saveLead.mock.callCount(), 1);
+  assert.equal(log.mock.callCount(), 1);
+  assert.equal(log.mock.calls[0].arguments[1], identity.id);
+  assert.equal(JSON.stringify(log.mock.calls).includes(submission.email), false);
+  assert.equal(JSON.stringify(log.mock.calls).includes('private-provider'), false);
+});
+
+test("research failure cannot suppress the acknowledgment", async (t) => {
+  enrichLead.mock.mockImplementation(async () => { throw new Error('research unavailable'); });
+  t.mock.method(console, "error", () => {});
+  assert.equal((await POST(request(submission))).status, 202);
+  await assert.doesNotReject(tasks[0]);
+  assert.deepEqual(sendContactAcknowledgment.mock.calls[0].arguments, [identity.id, submission]);
+  assert.equal(globalThis.fetch.mock.callCount(), 0);
 });
