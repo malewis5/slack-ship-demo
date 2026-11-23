@@ -120,3 +120,46 @@ body {
     animation: none;
   }
 }
+
+/* Keep the fantasy palette local to the landing page, not the CMS. */
+.enchanted-page {
+  --ds-background-100: #fffaf2;
+  --ds-background-200: #f4edf9;
+  --ds-gray-100: #eee5f5;
+  --ds-gray-700: #71617f;
+  --ds-gray-900: #5a4869;
+  --ds-gray-1000: #2b1d3b;
+  --ds-gray-alpha-400: rgb(87 55 116 / 16%);
+  color: var(--ds-gray-1000);
+  background-color: var(--ds-background-200);
+  background-image:
+    radial-gradient(ellipse at 0% 35%, #e7dcf4 0%, transparent 45%),
+    radial-gradient(ellipse at 100% 75%, #f9ead3 0%, transparent 45%),
+    radial-gradient(circle at 24px 24px, rgb(131 91 163 / 18%) 1px, transparent 1.5px);
+  background-size: auto, auto, 64px 64px;
+}
+
+.enchanted-hero-art {
+  object-position: 70% center;
+}
+
+.enchanted-hero-shade {
+  background: linear-gradient(90deg, rgb(16 14 41 / 94%), rgb(16 14 41 / 55%) 43%, transparent 72%),
+    linear-gradient(0deg, rgb(16 14 41 / 70%), transparent 25%);
+}
+
+@media (max-width: 600px) {
+  .enchanted-hero-art {
+    object-position: 78% top;
+  }
+
+  .enchanted-hero-shade {
+    background: linear-gradient(0deg, #100e29 3%, rgb(16 14 41 / 92%) 42%, rgb(16 14 41 / 8%) 80%);
+  }
+
+  .enchanted-hero-copy {
+    padding-top: 22rem;
+    padding-bottom: 3rem;
+    justify-content: flex-end;
+  }
+}

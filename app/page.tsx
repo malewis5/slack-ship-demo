@@ -9,7 +9,7 @@ import { SiteFooter } from '@/components/site-footer';
 
 export default function Page(): JSX.Element {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="enchanted-page flex min-h-screen flex-col">
       <SiteHeader />
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 sm:px-8">
         <Hero />

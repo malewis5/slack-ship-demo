@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <linearGradient id="sky" x2="1500" y2="1000" gradientUnits="userSpaceOnUse"><stop stop-color="#100e29"/><stop offset=".5" stop-color="#302052"/><stop offset="1" stop-color="#84649a"/></linearGradient>
+    <radialGradient id="glow"><stop stop-color="#d4b1f6" stop-opacity=".5"/><stop offset="1" stop-color="#b887e9" stop-opacity="0"/></radialGradient>
+    <linearGradient id="wing" x1="0" y1="0" x2="150" y2="320" gradientUnits="userSpaceOnUse"><stop stop-color="#a39bd6"/><stop offset="1" stop-color="#534479"/></linearGradient>
+    <linearGradient id="scales" x2="380" y2="240" gradientUnits="userSpaceOnUse"><stop stop-color="#b7d5cf"/><stop offset="1" stop-color="#5e91a4"/></linearGradient>
+    <pattern id="stars" width="283" height="231" patternUnits="userSpaceOnUse"><circle cx="31" cy="22" r="1.5" fill="#fff1d3" opacity=".8"/><circle cx="158" cy="110" r="1" fill="#e4d4ff" opacity=".7"/><circle cx="248" cy="203" r="2" fill="#fff1d3" opacity=".6"/><path d="M213 34v12m-6-6h12" stroke="#f7dfac" stroke-linecap="round" opacity=".7"/></pattern>
+    <g id="dragon">
+      <!-- Sweeping tail, body, and a long, horned head. -->
+      <path d="M112 190C44 252-38 228-42 178c-2-29 17-43 36-34-24 0-29 28-11 44 25 23 73 5 106-25Z" fill="url(#scales)"/>
+      <path d="M124 165C78 128 64 48 9 2c87 16 157 62 168 146Z" fill="url(#wing)" stroke="#c7b5e6" stroke-width="2"/>
+      <path d="M125 160C81 104 58 47 9 2m0 0c29 60 15 101 15 101 32-5 54 8 57 38 21-4 30 6 44 19" stroke="#c7b5e6" stroke-width="2"/>
+      <path d="M149 163C179 85 237 32 300 18c-28 37-29 84-23 111-37-13-61 9-66 42-31-13-44-8-62-8Z" fill="url(#wing)" stroke="#c7b5e6" stroke-width="2"/>
+      <path d="M156 159C210 106 252 65 300 18m-82 74-7 79" stroke="#c7b5e6" stroke-width="2"/>
+      <path d="M87 165c40-16 69-14 98-34 19-13 22-37 40-47l22 4 19 19-29 10c-6 40-21 64-57 75-34 11-58 17-93-27Z" fill="url(#scales)"/>
+      <path d="m223 87-2-21 16 20m5 3 10-17-1 26" fill="#f1d49b"/>
+      <path d="m184 137 4-18 9 10 8-22 8 10" stroke="#f1d49b" stroke-width="4" stroke-linejoin="round"/>
+      <path d="m135 189 7 20 26 8m13-29 5 14 19-2" stroke="#84aeb7" stroke-width="9" stroke-linecap="round"/>
+      <path d="M220 116c-5 35-32 56-64 63" stroke="#d7ddc4" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="239" cy="99" r="3" fill="#241d3b"/>
+      <path d="m278 104 12-3m3-13 5-8m-3 37 9 6" stroke="#efd49b" stroke-width="3" stroke-linecap="round"/>
+    </g>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h1600v1000H0z"/>
+  <ellipse cx="1140" cy="260" rx="600" ry="480" fill="url(#glow)"/>
+  <path fill="url(#stars)" d="M0 0h1600v1000H0z"/>
+  <circle cx="1220" cy="238" r="108" fill="#eddfc2"/>
+  <circle cx="1245" cy="215" r="104" fill="#56406f"/>
+  <circle cx="1220" cy="238" r="134" stroke="#e3c993" stroke-opacity=".22"/>
+  <circle cx="1220" cy="238" r="146" stroke="#e3c993" stroke-opacity=".1"/>
+  <use href="#dragon" transform="translate(970 295) rotate(-12) scale(1.35)"/>
+  <use href="#dragon" transform="translate(840 170) rotate(12) scale(.45)" opacity=".6"/>
+  <path d="M0 811 187 672 334 790 564 602 781 781 986 639 1191 740 1434 544 1600 678v322H0Z" fill="#322943"/>
+  <path d="m0 901 247-124 206 118 286-115 251 103 244-159 366 121v155H0Z" fill="#231f36"/>
+  <path d="m0 955 230-33 240 44 307-29 380 34 443-48v77H0Z" fill="#18162a"/>
+  <g stroke="#e6cda0" stroke-opacity=".35"><path d="M1304 653c-63-14-158 31-215 12m164 27c-51 23-129 1-176 13M834 758c92-23 174 17 241-6"/></g>
+</svg>

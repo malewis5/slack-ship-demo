@@ -13,18 +13,18 @@ export function Hero(): JSX.Element {
     <section className="relative left-1/2 w-screen -translate-x-1/2">
       <div className="relative min-h-[92svh] w-full overflow-hidden">
         <Image
-          src="/images/hero-wide.png"
-          alt="A moody high-end museum gallery interior with large ornate framed artworks glowing under warm spotlights, a lone figure viewing the art"
+          src="/images/enchanted-sky.svg"
+          alt=""
+          aria-hidden="true"
           fill
           priority
           sizes="100vw"
-          className="object-cover object-center"
+          className="enchanted-hero-art object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
+        <div className="enchanted-hero-shade absolute inset-0" />
 
         <div className="relative flex min-h-[92svh] flex-col">
-          <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-5 py-28 sm:px-8">
+          <div className="enchanted-hero-copy mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-5 py-28 sm:px-8">
             <span className="label-eyebrow text-white/70">
               Framing &amp; Display — New York
             </span>
