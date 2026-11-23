@@ -97,3 +97,26 @@ body {
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
+
+.party-wizard-dancer {
+  transform-box: view-box;
+  transform-origin: 60px 103px;
+  animation: party-wizard-dance 1.2s ease-in-out infinite;
+}
+
+.party-wizard[data-paused='true'] .party-wizard-dancer {
+  animation-play-state: paused;
+}
+
+@keyframes party-wizard-dance {
+  0%, 100% { transform: translateY(0) rotate(-8deg); }
+  25% { transform: translateY(-6px) rotate(0deg); }
+  50% { transform: translateY(0) rotate(8deg); }
+  75% { transform: translateY(-6px) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .party-wizard-dancer {
+    animation: none;
+  }
+}
