@@ -1,5 +1,6 @@
 import type { JSX } from 'react';
 import Image from 'next/image';
+import { ButtonLink } from './ui/controls';
 
 const STATS = [
   { value: '12k+', label: 'Pieces framed' },
@@ -58,6 +59,30 @@ export function About(): JSX.Element {
             checked by eye.
           </figcaption>
         </figure>
+      </div>
+
+      <div className="flex flex-col gap-6 border-t border-[var(--ds-gray-alpha-400)] pt-8 lg:col-span-12 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-xl">
+          <h3 className="font-editorial text-heading-24 text-gray-1000">
+            Let’s bring your display to life.
+          </h3>
+          <p className="mt-3 text-copy-16 text-gray-900">
+            From custom framing to display design and installation, tell us what
+            you need and we’ll arrange a consultation.
+          </p>
+        </div>
+        <ButtonLink
+          href="#contact"
+          size="large"
+          className="min-h-16 w-full px-8 sm:w-auto lg:shrink-0"
+          suffix={
+            <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" className="size-5">
+              <path d="M2.5 8h11m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          }
+        >
+          Book a Service
+        </ButtonLink>
       </div>
     </section>
   );
